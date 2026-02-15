@@ -5,10 +5,22 @@ import {
   blogWriterPromptTemplate,
 } from './prompts.js';
 
-export async function generateBlogPost(text, language, provider, apiKey, modelName, onUpdate) {
+interface BlogReference {
+  title: string;
+  url: string;
+}
+
+export async function generateBlogPost(
+  text: string,
+  language: string | null,
+  provider: string,
+  apiKey: string,
+  modelName: string,
+  onUpdate?: (msg: string) => void
+): Promise<string> {
   const chunks = chunkText(text);
-  const blogSections = [];
-  const references = [];
+  const blogSections: string[] = [];
+  const references: BlogReference[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
     if (onUpdate) onUpdate(`Blog: Writing section ${i + 1}/${chunks.length}...`);
@@ -22,15 +34,20 @@ export async function generateBlogPost(text, language, provider, apiKey, modelNa
 
     try {
       let section = await callLLM(blogWriterSystemPrompt(), blogWriterPromptTemplate(language, chunks[i], position), provider, apiKey, modelName, onUpdate);
-      section = section
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/, '')
-        .replace(/\s*```$/, '');
+      
+      if (section) {
+        section = section
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/, '')
+            .replace(/\s*```$/, '');
 
-      const sectionJson = JSON.parse(section);
-      blogSections.push(sectionJson.text);
-      if (Array.isArray(sectionJson.references)) {
-        references.push(...sectionJson.references);
+        const sectionJson = JSON.parse(section);
+        blogSections.push(sectionJson.text);
+        if (Array.isArray(sectionJson.references)) {
+            references.push(...sectionJson.references);
+        }
+      } else {
+        blogSections.push(chunks[i]);
       }
     } catch (e) {
       console.error("Error parsing blog section JSON", e);

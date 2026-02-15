@@ -5,7 +5,7 @@ import { enrichMarkdown } from "../src/illustrator.js";
 import { generateBlogPost } from "../src/blogger.js";
 import { generateSummary } from "../src/summarizer.js";
 import React from "react";
-import { render } from "ink";
+import { render, Instance } from "ink";
 import ProgressTUI from "../src/ProgressTUI.js";
 import fs from "fs";
 import path from "path";
@@ -14,6 +14,21 @@ import path from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { printModelsHelp } from "../src/cli-help.js";
+
+interface Arguments {
+  [x: string]: unknown;
+  "with-illustration"?: boolean;
+  "with-illustration-all"?: boolean;
+  blog?: boolean;
+  summary?: boolean;
+  language?: string;
+  directory?: string;
+  model?: string;
+  "search-key"?: string;
+  "project-id"?: string;
+  "list-models"?: boolean;
+  _?: (string | number)[];
+}
 
 const argv = yargs(hideBin(process.argv))
   .usage("Usage: $0 <file|--directory> [options]")
@@ -29,12 +44,12 @@ const argv = yargs(hideBin(process.argv))
   .option("list-models", { type: "boolean", description: "List available models" })
   .help()
   .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nRun with --list-models to see available models.")
-  .argv;
+  .parseSync() as Arguments;
 
 const defaultModel = "gpt-4.1";
 
 
-async function promptIfMissing(value, promptText) {
+async function promptIfMissing(value: string | undefined | null, promptText: string): Promise<string> {
   if (value) return value;
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => {
@@ -45,7 +60,7 @@ async function promptIfMissing(value, promptText) {
   });
 }
 
-async function processFile(transcriptPath, options) {
+async function processFile(transcriptPath: string, options: Arguments) {
   const transcript = fs.readFileSync(transcriptPath, "utf-8");
   const baseName = path.basename(transcriptPath, path.extname(transcriptPath));
   const dirName = path.dirname(transcriptPath);
@@ -62,11 +77,12 @@ async function processFile(transcriptPath, options) {
     options["with-illustration"] || options["with-illustration-all"] ? "Adding illustrations" : null,
     options.blog ? "Generating blog post" : null,
     options.summary ? "Generating summary" : null
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+
   let currentStep = 0;
   let status = "";
-  let tuiInstance;
-  function updateTUI(step, stat) {
+  let tuiInstance: Instance | undefined;
+  function updateTUI(step: number, stat: string) {
     const app = React.createElement(ProgressTUI, { steps, currentStep: step, status: stat });
     if (tuiInstance) {
       tuiInstance.rerender(app);
@@ -172,7 +188,9 @@ async function main() {
   if ((argv["with-illustration"] || argv["with-illustration-all"]) && (!searchKey || !projectId)) {
     if (!searchKey) {
       searchKey = await promptIfMissing(null, "Enter search key for illustration (CUSTOM_SEARCH_KEY): ");
-      argv["search-key"] = searchKey;
+      argv["search-key"] = searchKey; // Is this safe? argv is const but properties are mutable? No, it's typed as Arguments.
+      // We can't mutate argv directly if it's strict. But yargs return is usually an object we can modify.
+      // Let's assume we can or use local variables. We are passing `argv` to `processFile`.
     }
     if (!projectId) {
       projectId = await promptIfMissing(null, "Enter project id for illustration (CUSTOM_SEARCH_PROJECT): ");
@@ -183,14 +201,14 @@ async function main() {
   if (argv.directory) {
     const files = fs.readdirSync(argv.directory)
       .filter(f => f.endsWith(".srt"))
-      .map(f => path.join(argv.directory, f));
+      .map(f => path.join(argv.directory!, f));
     for (const file of files) {
       await processFile(file, argv);
     }
-  } else if (argv._[0]) {
-    await processFile(argv._[0], argv);
+  } else if (argv._ && argv._[0]) {
+    await processFile(String(argv._[0]), argv);
   } else {
-    yargs().showHelp();
+    yargs(hideBin(process.argv)).showHelp();
     process.exit(1);
   }
 }

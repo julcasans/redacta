@@ -1,6 +1,10 @@
 const CUSTOM_SEARCH_URL = 'https://www.googleapis.com/customsearch/v1';
 
-export async function callCustomSearch(query, apiKey, engineId) {
+export async function callCustomSearch(
+  query: string,
+  apiKey: string,
+  engineId: string
+): Promise<{ link: string; title: string } | null> {
   // Add delay to be nice
   await new Promise((r) => setTimeout(r, 1000));
 

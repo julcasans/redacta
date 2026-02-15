@@ -8,22 +8,35 @@ import {
 } from './prompts.js';
 import { callCustomSearch } from './image-finder.js';
 
-export async function enrichMarkdown(markdown, provider, apiKey, searchKey, engineId, modelName, mode = 'essential', onUpdate) {
+export async function enrichMarkdown(
+  markdown: string,
+  provider: string,
+  apiKey: string,
+  searchKey: string,
+  engineId: string,
+  modelName: string,
+  mode: 'all' | 'essential' = 'essential',
+  onUpdate?: (msg: string) => void
+): Promise<string> {
   // 1. Identify Placeholders
   const chunks = chunkText(markdown);
-  const enrichedChunks = [];
+  const enrichedChunks: string[] = [];
 
 
   for (let i = 0; i < chunks.length; i++) {
     if (onUpdate) onUpdate(`Enriching: Identifying images in chunk ${i + 1}/${chunks.length}...`);
     try {
       let chunk = await callLLM(illustratorSystemPrompt(), illustratorPromptTemplate(chunks[i], mode), provider, apiKey, modelName, onUpdate);
-      chunk = chunk
-        .replace(/^```markdown\s*/i, '')
-        .replace(/^```\s*/, '')
-        .replace(/\s*```$/, '');
-      enrichedChunks.push(chunk);
-    } catch (e) {
+      if (chunk) {
+        chunk = chunk
+          .replace(/^```markdown\s*/i, '')
+          .replace(/^```\s*/, '')
+          .replace(/\s*```$/, '');
+        enrichedChunks.push(chunk);
+      } else {
+        enrichedChunks.push(chunks[i]);
+      }
+    } catch (e: any) {
       console.error(e);
       if (onUpdate) onUpdate(`Error enriching chunk ${i + 1}: ${e.message}`);
       enrichedChunks.push(chunks[i]);
@@ -46,11 +59,15 @@ export async function enrichMarkdown(markdown, provider, apiKey, searchKey, engi
 
       try {
         let diagram = await callLLM(sketcherSystemPrompt(), sketcherPromptTemplate(description), provider, apiKey, modelName, onUpdate);
-        diagram = diagram.trim();
-        if (!diagram.startsWith('```')) {
-          diagram = '```text\n' + diagram + '\n```';
+        if (diagram) {
+            diagram = diagram.trim();
+            if (!diagram.startsWith('```')) {
+            diagram = '```text\n' + diagram + '\n```';
+            }
+            finalText = finalText.replace(fullTag, diagram + `\n*Diagram: ${description}*`);
+        } else {
+            finalText = finalText.replace(fullTag, `<!-- Failed to generate diagram: ${description} -->`);
         }
-        finalText = finalText.replace(fullTag, diagram + `\n*Diagram: ${description}*`);
       } catch (e) {
         console.error("Error generating diagram", e);
         // Keep the tag or a failure comment so we don't lose the context entirely or break the text

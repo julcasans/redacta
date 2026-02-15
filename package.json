@@ -11,13 +11,24 @@
     "yargs": "^17.7.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rimraf dist && tsc",
+    "start": "node dist/bin/redacta.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bin": {
-    "redacta": "./bin/redacta.js"
+    "redacta": "./dist/bin/redacta.js"
+  },
+  "devDependencies": {
+    "@types/ink": "^0.5.2",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/yargs": "^17.0.35",
+    "rimraf": "^6.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

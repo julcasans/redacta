@@ -1,10 +1,10 @@
 
-export const languageInstruction = language => language
+export const languageInstruction = (language: string | null) => language
   ? `The output MUST be in ${language}. Translate the content if necessary.`
   : 'The output MUST be in the same language as the input transcript. Do NOT translate.';
 
 export const editorSystemPrompt = () => 'You are an expert editor.';
-export const editorPromptTemplate = (language, segment) => `
+export const editorPromptTemplate = (language: string | null, segment: string) => `
   You are an expert editor. I will provide you with a raw transcript of a video.
   Your task is to convert this transcript into a well-formatted Markdown document AND extract any references mentioned.
   
@@ -38,7 +38,7 @@ export const illustratorSystemPrompt = () => 'You are an expert editor enriching
  * @param {string} segment - The markdown/text to enrich
  * @param {'all'|'essential'} [mode='essential'] - If 'essential', solo agrega esquemas realmente necesarios para la comprensión; si 'all', agrega todos los posibles como antes.
  */
-export const illustratorPromptTemplate = (segment, mode = 'essential') => {
+export const illustratorPromptTemplate = (segment: string, mode: 'all' | 'essential' = 'essential') => {
   let modeInstruction = '';
   if (mode === 'essential') {
     modeInstruction = `\nIMPORTANT: Only add diagrams or visualizations that are truly essential for understanding the text. Do NOT add diagrams for every possible concept—only for those that would be confusing or unclear without a visual aid. Be selective and minimal.`;
@@ -75,10 +75,10 @@ export const illustratorPromptTemplate = (segment, mode = 'essential') => {
 };
 
 export const sketcherSystemPrompt = () => 'You are an expert at creating ASCII art diagrams.';
-export const sketcherPromptTemplate = (description) => `Create a clear and concise ASCII diagram or flow chart to visualize the following concept:\n${description}\n\nWrap the output in a markdown code block (e.g. \`\`\`text ... \`\`\`).`;
+export const sketcherPromptTemplate = (description: string) => `Create a clear and concise ASCII diagram or flow chart to visualize the following concept:\n${description}\n\nWrap the output in a markdown code block (e.g. \`\`\`text ... \`\`\`).`;
 
 export const summarizerSystemPrompt = () => 'You are an expert summarizer.';
-export const preSummarizerPromptTemplate = (language, segment) => `
+export const preSummarizerPromptTemplate = (language: string | null, segment: string) => `
 You are an expert summarizer.
 Your task is to rewrite the following text to be concise and straight to the point.
 - Remove unnecessary words, filler, and fluff.
@@ -93,7 +93,7 @@ Text to condense:
 ${segment}
 `;
 
-export const summarizerPromptTemplate = (language, text) => `
+export const summarizerPromptTemplate = (language: string | null, text: string) => `
     You are an expert summarizer.
     Your task is to rewrite the following text to be concise and straight to the point.
     - Remove unnecessary words, filler, and fluff.
@@ -114,7 +114,7 @@ export const summarizerPromptTemplate = (language, text) => `
     `;
 
 export const blogWriterSystemPrompt = () => 'You are an expert blog writer.';
-export const blogWriterPromptTemplate = (language, segment, position) => `
+export const blogWriterPromptTemplate = (language: string | null, segment: string, position: string) => `
   You are an expert blog writer.
   Your task is to rewrite the provided transcript segment into an engaging, well-structured blog post section.
 

@@ -4,15 +4,15 @@ const STREAM_TIMEOUT_MS = 3 * 60 * 1000;
 const STREAM_LOG_INTERVAL_MS = 2000;
 
 export async function callLLM(
-  systemPrompt,
-  userPrompt,
-  provider,
-  apiKey,
-  model,
-  onUpdate
-) {
+  systemPrompt: string,
+  userPrompt: string,
+  provider: string,
+  apiKey: string,
+  model: string,
+  onUpdate?: (msg: string) => void
+): Promise<string | null> {
   const client = new CopilotClient();
-  let textResponse = null;
+  let textResponse: string | null = null;
   try {
     await client.start();
 
@@ -34,7 +34,16 @@ export async function callLLM(
   return textResponse;
 }
 
-async function sendWithOptionalStreaming(client, { model, systemPrompt, userPrompt, timeoutMs, onUpdate }) {
+interface SendOptions {
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+  timeoutMs: number;
+  onUpdate?: (msg: string) => void;
+  streaming?: boolean;
+}
+
+async function sendWithOptionalStreaming(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, onUpdate }: SendOptions): Promise<string | null> {
   // 1) Try streaming first (faster feedback).
   try {
     return await sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming: true, onUpdate });
@@ -49,7 +58,7 @@ async function sendWithOptionalStreaming(client, { model, systemPrompt, userProm
   }
 }
 
-async function sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming, onUpdate }) {
+async function sendOnce(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, streaming, onUpdate }: SendOptions): Promise<string | null> {
   const session = await client.createSession({
     model,
     streaming,
@@ -79,15 +88,15 @@ async function sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, st
   }
 }
 
-function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
-  let resolvePromise;
-  let rejectPromise;
+function waitForAssistantCompletion(session: any, timeoutMs: number, onUpdate?: (msg: string) => void) {
+  let resolvePromise: (value: string | null) => void;
+  let rejectPromise: (reason?: any) => void;
   let settled = false;
-  let timeoutId;
+  let timeoutId: NodeJS.Timeout | undefined;
   let partialResponse = '';
   let lastLogTime = 0;
 
-  const unsubscribers = [];
+  const unsubscribers: (() => void)[] = [];
 
   const cleanup = () => {
     if (timeoutId) {
@@ -100,26 +109,26 @@ function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
     }
   };
 
-  const settleSuccess = (value) => {
+  const settleSuccess = (value: string | null) => {
     if (settled) return;
     settled = true;
     cleanup();
-    resolvePromise(value);
+    if (resolvePromise) resolvePromise(value);
   };
 
-  const settleFailure = (error) => {
+  const settleFailure = (error: Error) => {
     if (settled) return;
     settled = true;
     cleanup();
-    rejectPromise(error);
+    if (rejectPromise) rejectPromise(error);
   };
 
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise<string | null>((resolve, reject) => {
     resolvePromise = resolve;
     rejectPromise = reject;
 
     unsubscribers.push(
-      session.on('assistant.message_delta', (event) => {
+      session.on('assistant.message_delta', (event: any) => {
         const delta = event?.data?.deltaContent ?? '';
         if (!delta) return;
         partialResponse += delta;
@@ -132,7 +141,7 @@ function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
     );
 
     unsubscribers.push(
-      session.on('assistant.message', (event) => {
+      session.on('assistant.message', (event: any) => {
         const content = event?.data?.content ?? partialResponse;
         if (onUpdate) onUpdate(`[callLLM] Streaming complete (${content.length} chars).`);
         settleSuccess(content);
@@ -140,7 +149,7 @@ function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
     );
 
     unsubscribers.push(
-      session.on('session.error', (event) => {
+      session.on('session.error', (event: any) => {
         const message = event?.data?.message ?? 'LLM session error';
         const isKnownPrematureStreamClose = message.includes('Stream completed without a response.completed event');
         if (isKnownPrematureStreamClose && partialResponse.length > 0) {
@@ -155,7 +164,7 @@ function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
     );
 
     unsubscribers.push(
-      session.on('abort', (event) => {
+      session.on('abort', (event: any) => {
         const message = event?.data?.reason ?? 'LLM session aborted';
         const isKnownPrematureStreamClose = message.includes('Stream completed without a response.completed event');
         if (isKnownPrematureStreamClose && partialResponse.length > 0) {
@@ -184,6 +193,6 @@ function waitForAssistantCompletion(session, timeoutMs, onUpdate) {
 
   return {
     promise,
-    cancel: (error) => settleFailure(error ?? new Error('LLM session cancelled')),
+    cancel: (error?: Error) => settleFailure(error ?? new Error('LLM session cancelled')),
   };
 }

@@ -6,18 +6,29 @@ import {
   summarizerPromptTemplate,
 } from './prompts.js';
 
-export async function generateSummary(text, language, provider, apiKey, modelName, onUpdate) {
+export async function generateSummary(
+  text: string,
+  language: string | null,
+  provider: string,
+  apiKey: string,
+  modelName: string,
+  onUpdate?: (msg: string) => void
+): Promise<string> {
   const chunks = chunkText(text);
-  const condensedChunks = [];
+  const condensedChunks: string[] = [];
 
   // 1. Condense
   for (let i = 0; i < chunks.length; i++) {
     if (onUpdate) onUpdate(`Summarizing: Condensing chunk ${i + 1}/${chunks.length}...`);
 
     try {
-      let condensed = await callLLM(summarizerSystemPrompt, preSummarizerPromptTemplate(language, chunks[i]), provider, apiKey, modelName, onUpdate);
+      let condensed = await callLLM(summarizerSystemPrompt(), preSummarizerPromptTemplate(language, chunks[i]), provider, apiKey, modelName, onUpdate);
 
-      condensedChunks.push(condensed);
+      if (condensed) {
+        condensedChunks.push(condensed);
+      } else {
+        condensedChunks.push(chunks[i]);
+      }
     } catch (e) {
       console.error(e);
       condensedChunks.push(chunks[i]);
@@ -28,7 +39,7 @@ export async function generateSummary(text, language, provider, apiKey, modelNam
 
   // 2. Global Summary
   if (onUpdate) onUpdate('Summarizing: Generating abstract...');
-  let globalMeta = '';
+  let globalMeta: string | null = '';
   try {
     globalMeta = await callLLM(
       summarizerSystemPrompt(),
@@ -43,5 +54,5 @@ export async function generateSummary(text, language, provider, apiKey, modelNam
   }
 
   // return `${globalMeta}\n\n## Condensed Content\n${fullCondensed}${referencesSection}`;
-  return `${globalMeta}\n\n${fullCondensed}`;
+  return `${globalMeta || ''}\n\n${fullCondensed}`;
 }

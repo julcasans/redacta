@@ -6,9 +6,9 @@
  * If sentences are too long, splits by words.
  * Port of text_utils.py
  */
-export function chunkText(text, maxChars = 20000) {
-  const chunks = [];
-  let currentChunk = [];
+export function chunkText(text: string, maxChars = 20000): string[] {
+  const chunks: string[] = [];
+  let currentChunk: string[] = [];
   let currentLength = 0;
 
   function flushChunk() {
@@ -31,7 +31,7 @@ export function chunkText(text, maxChars = 20000) {
       // In Python: paragraph.split(". ")
       const sentences = paragraph.split('. ');
 
-      let sentChunk = [];
+      let sentChunk: string[] = [];
       let sentChunkLen = 0;
 
       for (const sentence of sentences) {
@@ -46,7 +46,7 @@ export function chunkText(text, maxChars = 20000) {
           }
 
           const words = sentence.split(' ');
-          let wordChunk = [];
+          let wordChunk: string[] = [];
           let wordChunkLen = 0;
 
           for (const word of words) {
@@ -97,6 +97,15 @@ export function chunkText(text, maxChars = 20000) {
   return chunks;
 }
 
+type CallLLMFunction = (
+  systemPrompt: string,
+  userPrompt: string,
+  provider: string,
+  apiKey: string,
+  modelName: string,
+  onUpdate?: (msg: string) => void
+) => Promise<string | null>;
+
 /**
  * Splits raw text (no punctuation) into chunks using an LLM to find logical boundaries.
  * Implements a Dynamic Cursor (Streaming Buffer) approach.
@@ -109,8 +118,15 @@ export function chunkText(text, maxChars = 20000) {
  * @param {number} windowSize - Size of the window to analyze in characters (approx 500 words ~ 3000 chars).
  * @returns {Promise<string[]>} Array of text chunks.
  */
-export async function chunkRawText(text, callLLM, provider, apiKey, modelName, windowSize = 3000) {
-  const chunks = [];
+export async function chunkRawText(
+  text: string,
+  callLLM: CallLLMFunction,
+  provider: string,
+  apiKey: string,
+  modelName: string,
+  windowSize = 3000
+): Promise<string[]> {
+  const chunks: string[] = [];
   let cursor = 0;
   const totalLength = text.length;
 

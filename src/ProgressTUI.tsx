@@ -1,8 +1,15 @@
 
+
 import React from 'react';
 import { Box, Text } from 'ink';
 
-export default function ProgressTUI({ steps, currentStep, status }) {
+interface ProgressTUIProps {
+  steps: string[];
+  currentStep: number;
+  status: string | null;
+}
+
+export default function ProgressTUI({ steps, currentStep, status }: ProgressTUIProps) {
   return React.createElement(
     Box,
     { flexDirection: 'column', margin: 1 },

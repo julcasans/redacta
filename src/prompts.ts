@@ -20,13 +20,26 @@ export const editorPromptTemplate = (language: string | null, segment: string) =
       *   **INCLUDE**: Full URLs, specific book/article titles, specific paper names, unique tool names mentioned as resources (e.g., "Oh My Posh", "Spec Kit").
       *   **EXCLUDE**: Generic technology names ("React", "Python", "Azure", "GitHub", "VS Code"), general concepts ("Cloud", "AI"), or broad platform names unless a specific deep-link or specific article is discussed.
       *   Your goal is a curated reading list, not a keyword cloud.
-  4.  **Language**: ${languageInstruction(language)}
-  5.  **Output Format**: Return a valid JSON object with the following structure:
+  4.  **Mathematical Expressions**: You MUST format ALL mathematical expressions using LaTeX with dollar sign delimiters ONLY:
+      *   **Inline math**: Wrap in single dollar signs: $x^2 + y^2 = z^2$
+      *   **Block/display math**: Wrap in double dollar signs on separate lines:
+          $$
+          \\frac{\\partial L}{\\partial w} = \\frac{1}{n} \\sum_{i=1}^{n} x_i
+          $$
+      *   Use SINGLE backslashes in LaTeX commands: \\frac, \\partial, \\sum, \\lim, \\to, \\times
+      *   **ONLY use $ and $$ delimiters. No other delimiters are allowed.**
+      *   **Examples of CORRECT formatting**: 
+          - Inline: $\\alpha + \\beta = \\gamma$
+          - Inline with fractions: $\\frac{\\partial l}{\\partial d} = f$
+          - Block: $$\\int_{0}^{\\infty} e^{-x} dx = 1$$
+          - Limits: $$\\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}$$
+  5.  **Language**: ${languageInstruction(language)}
+  6.  **Output Format**: Return a valid JSON object with the following structure:
   {
       "text": "The formatted markdown text...",
       "references": [{title: "Reference 1", "url": "URL 1"}, {title: "Reference 2", "url": "URL 2"}, ...] // An array of reference objects
   }
-  > ATTENTION! The JSON must be valid and complete. Be careful scaping the JSON, especially the double quotes, Latex symbols, etc. Check the JSON validity before returning (you can use JSON.parse to check it).
+  > ATTENTION! The JSON must be valid and complete. Check the JSON validity before returning (you can use JSON.parse to check it).
   (If no references are found, "references" should be an empty array).
   
   Here is the transcript segment:
@@ -86,6 +99,10 @@ Your task is to rewrite the following text to be concise and straight to the poi
 - The output text should be readable as a continuous text (not just a list of bullets), but much shorter than the original.
 - Do NOT add any meta-commentary like "Here is the summary".
 - Include the reference section if found
+- **Mathematical Expressions**: Format all mathematical expressions using LaTeX notation:
+    * Inline math: Use single dollar signs: $x^2 + y^2 = z^2$
+    * Block math: Use double dollar signs on separate lines
+    * CRITICAL: Always use SINGLE backslashes in LaTeX commands (e.g., \\frac, \\partial, \\sum)
 - Language: ${languageInstruction(language)}
 
 Text to condense:
@@ -100,6 +117,10 @@ export const summarizerPromptTemplate = (language: string | null, text: string) 
     - Preserve all key technical details, facts, and steps.
     - The output should be readable as a continuous text (not just a list of bullets), but much shorter than the original.
     - Do NOT add any meta-commentary like "Here is the summary".
+    - **Mathematical Expressions**: Format all mathematical expressions using LaTeX notation:
+        * Inline math: Use single dollar signs: $x^2 + y^2 = z^2$
+        * Block math: Use double dollar signs on separate lines
+        * CRITICAL: Always use SINGLE backslashes in LaTeX commands (e.g., \\frac, \\partial, \\sum)
     ${languageInstruction(language)}
     
     Format:
@@ -126,6 +147,19 @@ export const blogWriterPromptTemplate = (language: string | null, segment: strin
   - **Style**: Write as a human blog author. Not a transcript summary. This is a blog post, not a transcript, not a talk, not a class, not a conversation. Make it engaging and easy to read, with a natural flow.
   - **Tone**: Engaging, informative, and professional.
   - **Formatting**: Use Markdown headers, bold text, and lists.
+  - **Mathematical Expressions**: You MUST format ALL mathematical expressions using LaTeX with dollar sign delimiters ONLY:
+      *   **Inline math**: Wrap in single dollar signs: $x^2 + y^2 = z^2$
+      *   **Block/display math**: Wrap in double dollar signs on separate lines:
+          $$
+          \\frac{\\partial L}{\\partial w} = \\frac{1}{n} \\sum_{i=1}^{n} x_i
+          $$
+      *   Use SINGLE backslashes in LaTeX commands: \\frac, \\partial, \\sum, \\lim, \\to, \\times
+      *   **ONLY use $ and $$ delimiters. No other delimiters are allowed.**
+      *   **Examples of CORRECT formatting**: 
+          - Inline: $\\alpha + \\beta = \\gamma$
+          - Inline with fractions: $\\frac{\\partial l}{\\partial d} = f$
+          - Block: $$\\int_{0}^{\\infty} e^{-x} dx = 1$$
+          - Limits: $$\\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}$$
   - **Images**: PRESERVE all <!-- IMAGE_SEARCH --> and ![...] tags.
   - **Fidelity**: Keep the core information accurate.
   - The output should have a json object with the following structure:
@@ -133,7 +167,7 @@ export const blogWriterPromptTemplate = (language: string | null, segment: strin
       "text": "...", // string markdown content
       "references": [{title: "Reference 1", "url": "URL 1"}, {title: "Reference 2", "url": "URL 2"}, ...] // An array of reference objects
   }
-  > ATTENTION! The JSON must be valid and complete. Be careful scaping the JSON, especially the double quotes, Latex symbols, etc. Check the JSON validity before returning (you can use JSON.parse to check it).
+  > ATTENTION! The JSON must be valid and complete. Check the JSON validity before returning (you can use JSON.parse to check it).
   ${languageInstruction(language)}
 
   Transcript Segment to Rewrite:

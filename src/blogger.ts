@@ -4,10 +4,22 @@ import {
   blogWriterSystemPrompt,
   blogWriterPromptTemplate,
 } from './prompts.js';
+import { parseLLMResponse } from './json-parser.js';
 
 interface BlogReference {
   title: string;
   url: string;
+}
+
+/**
+ * Fix LaTeX delimiters in the text by replacing incorrect ones with correct ones
+ */
+function fixLatexDelimiters(text: string): string {
+  return text
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$')
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$');
 }
 
 export async function generateBlogPost(
@@ -41,8 +53,9 @@ export async function generateBlogPost(
             .replace(/^```\s*/, '')
             .replace(/\s*```$/, '');
 
-        const sectionJson = JSON.parse(section);
-        blogSections.push(sectionJson.text);
+        const sectionJson = parseLLMResponse(section);
+        const cleanedText = fixLatexDelimiters(sectionJson.text);
+        blogSections.push(cleanedText);
         if (Array.isArray(sectionJson.references)) {
             references.push(...sectionJson.references);
         }

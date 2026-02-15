@@ -6,6 +6,17 @@ import {
   summarizerPromptTemplate,
 } from './prompts.js';
 
+/**
+ * Fix LaTeX delimiters in the text by replacing incorrect ones with correct ones
+ */
+function fixLatexDelimiters(text: string): string {
+  return text
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$')
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$');
+}
+
 export async function generateSummary(
   text: string,
   language: string | null,

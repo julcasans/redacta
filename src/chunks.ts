@@ -7,6 +7,7 @@
  * Port of text_utils.py
  */
 export function chunkText(text: string, maxChars = 20000): string[] {
+  if (!text) return [];
   const chunks: string[] = [];
   let currentChunk: string[] = [];
   let currentLength = 0;

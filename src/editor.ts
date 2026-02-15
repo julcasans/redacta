@@ -1,10 +1,22 @@
 import { callLLM } from './llm-caller.js';
 import { chunkText, chunkRawText } from './chunks.js'
 import { editorSystemPrompt, editorPromptTemplate } from './prompts.js';
+import { parseLLMResponse } from './json-parser.js';
 
 interface Reference {
   title: string;
   url: string;
+}
+
+/**
+ * Fix LaTeX delimiters in the text by replacing incorrect ones with correct ones
+ */
+function fixLatexDelimiters(text: string): string {
+  return text
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$')
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$');
 }
 
 export async function formatTranscript(
@@ -43,8 +55,9 @@ export async function formatTranscript(
           .replace(/^```\s*/, '')
           .replace(/\s*```$/, '');
         
-        const parsed = JSON.parse(response);
-        formattedChunks.push(parsed.text);
+        const parsed = parseLLMResponse(response);
+        const cleanedText = fixLatexDelimiters(parsed.text);
+        formattedChunks.push(cleanedText);
         if (Array.isArray(parsed.references)) {
           allReferences.push(...parsed.references);
         }

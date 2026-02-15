@@ -173,6 +173,10 @@ async function processFile(transcriptPath: string, options: Arguments) {
     updateTUI(currentStep, status);
     currentStep++;
   }
+  // Ensure the final state (all green) is rendered
+  updateTUI(currentStep - 1, "Done");
+  // Give Ink a moment to render the final state before unmounting
+  await new Promise(resolve => setTimeout(resolve, 100));
   if (tuiInstance) tuiInstance.unmount();
 }
 

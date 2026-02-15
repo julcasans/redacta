@@ -20,10 +20,10 @@ export default function ProgressTUI({ steps, currentStep, status }: ProgressTUIP
         [
           React.createElement(
             Text,
-            { key: 'text', color: idx < currentStep ? 'green' : idx === currentStep ? 'yellow' : 'gray' },
-            `${idx < currentStep ? '✔' : idx === currentStep ? '➔' : '•'} ${step}`
+            { key: 'text', color: idx < currentStep || (idx === currentStep && status === 'Done') ? 'green' : idx === currentStep ? 'yellow' : 'gray' },
+            `${idx < currentStep || (idx === currentStep && status === 'Done') ? '✔' : idx === currentStep ? '➔' : '•'} ${step}`
           ),
-          idx === currentStep && status
+          idx === currentStep && status && status !== 'Done'
             ? React.createElement(
                 Text,
                 { key: 'status', color: 'cyan' },

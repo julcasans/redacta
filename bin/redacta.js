@@ -1,0 +1,198 @@
+#!/usr/bin/env node
+import readline from "readline";
+import { formatTranscript } from "../src/editor.js";
+import { enrichMarkdown } from "../src/illustrator.js";
+import { generateBlogPost } from "../src/blogger.js";
+import { generateSummary } from "../src/summarizer.js";
+import React from "react";
+import { render } from "ink";
+import ProgressTUI from "../src/ProgressTUI.js";
+import fs from "fs";
+import path from "path";
+
+// Use yargs for argument parsing
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+import { printModelsHelp } from "../src/cli-help.js";
+
+const argv = yargs(hideBin(process.argv))
+  .usage("Usage: $0 <file|--directory> [options]")
+  .option("with-illustration", { type: "boolean", description: "Add essential illustrations" })
+  .option("with-illustration-all", { type: "boolean", description: "Add all illustrations" })
+  .option("blog", { type: "boolean", description: "Generate blog post" })
+  .option("summary", { type: "boolean", description: "Generate summary" })
+  .option("language", { type: "string", description: "Output language" })
+  .option("directory", { type: "string", description: "Process all files in directory" })
+  .option("model", { type: "string", description: "Specify model to use" })
+  .option("search-key", { type: "string", description: "Custom search key for illustration (overrides env)" })
+  .option("project-id", { type: "string", description: "Custom project id for illustration (overrides env)" })
+  .option("list-models", { type: "boolean", description: "List available models" })
+  .help()
+  .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nRun with --list-models to see available models.")
+  .argv;
+
+const defaultModel = "gpt-4.1";
+
+
+async function promptIfMissing(value, promptText) {
+  if (value) return value;
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(promptText, answer => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function processFile(transcriptPath, options) {
+  const transcript = fs.readFileSync(transcriptPath, "utf-8");
+  const baseName = path.basename(transcriptPath, path.extname(transcriptPath));
+  const dirName = path.dirname(transcriptPath);
+  const formattedPath = path.join(dirName, `${baseName}_formatted.md`);
+
+  const model = options.model || process.env.MODEL || defaultModel;
+  // CLI args take precedence, then env, then prompt
+  let searchKey = options["search-key"] || process.env.CUSTOM_SEARCH_KEY;
+  let projectId = options["project-id"] || process.env.CUSTOM_SEARCH_PROJECT;
+
+  // Progress steps
+  const steps = [
+    "Formatting transcript",
+    options["with-illustration"] || options["with-illustration-all"] ? "Adding illustrations" : null,
+    options.blog ? "Generating blog post" : null,
+    options.summary ? "Generating summary" : null
+  ].filter(Boolean);
+  let currentStep = 0;
+  let status = "";
+  let tuiInstance;
+  function updateTUI(step, stat) {
+    const app = React.createElement(ProgressTUI, { steps, currentStep: step, status: stat });
+    if (tuiInstance) {
+      tuiInstance.rerender(app);
+    } else {
+      tuiInstance = render(app);
+    }
+  }
+
+  // Step 1: Format transcript
+  status = "Processing...";
+  updateTUI(currentStep, status);
+  const formattedOutput = await formatTranscript(
+    transcript,
+    options.language || null,
+    "",
+    "",
+    model,
+    (msg) => updateTUI(currentStep, msg)
+  );
+  fs.writeFileSync(formattedPath, formattedOutput);
+  status = "Done";
+  updateTUI(currentStep, status);
+  currentStep++;
+
+  let latestFormattedOutput = formattedOutput;
+
+  // Step 2: Illustrate if requested
+  if (options["with-illustration"] || options["with-illustration-all"]) {
+    status = "Processing...";
+    updateTUI(currentStep, status);
+    if (!searchKey) {
+      searchKey = await promptIfMissing(null, "Enter search key for illustration (CUSTOM_SEARCH_KEY): ");
+    }
+    if (!projectId) {
+      projectId = await promptIfMissing(null, "Enter project id for illustration (CUSTOM_SEARCH_PROJECT): ");
+    }
+    const mode = options["with-illustration-all"] ? "all" : "essential";
+    latestFormattedOutput = await enrichMarkdown(
+      formattedOutput,
+      "",
+      "",
+      searchKey,
+      projectId,
+      model,
+      mode,
+      (msg) => updateTUI(currentStep, msg)
+    );
+    fs.writeFileSync(formattedPath, latestFormattedOutput);
+    status = "Done";
+    updateTUI(currentStep, status);
+    currentStep++;
+  }
+
+  // Step 3: Blog
+  if (options.blog) {
+    status = "Processing...";
+    updateTUI(currentStep, status);
+    const blogPath = path.join(dirName, `${baseName}_blog.md`);
+    const blogOutput = await generateBlogPost(
+      latestFormattedOutput,
+      options.language || null,
+      "",
+      "",
+      model,
+      (msg) => updateTUI(currentStep, msg)
+    );
+    fs.writeFileSync(blogPath, blogOutput);
+    status = "Done";
+    updateTUI(currentStep, status);
+    currentStep++;
+  }
+
+  // Step 4: Summary
+  if (options.summary) {
+    status = "Processing...";
+    updateTUI(currentStep, status);
+    const summaryPath = path.join(dirName, `${baseName}_summary.md`);
+    const summaryOutput = await generateSummary(
+      latestFormattedOutput,
+      options.language || null,
+      "",
+      "",
+      model,
+      (msg) => updateTUI(currentStep, msg)
+    );
+    fs.writeFileSync(summaryPath, summaryOutput);
+    status = "Done";
+    updateTUI(currentStep, status);
+    currentStep++;
+  }
+  if (tuiInstance) tuiInstance.unmount();
+}
+
+async function main() {
+  if (argv["list-models"]) {
+    await printModelsHelp();
+    process.exit(0);
+  }
+
+  // Prompt for illustration credentials at the start if needed
+  let searchKey = argv["search-key"] || process.env.CUSTOM_SEARCH_KEY;
+  let projectId = argv["project-id"] || process.env.CUSTOM_SEARCH_PROJECT;
+  if ((argv["with-illustration"] || argv["with-illustration-all"]) && (!searchKey || !projectId)) {
+    if (!searchKey) {
+      searchKey = await promptIfMissing(null, "Enter search key for illustration (CUSTOM_SEARCH_KEY): ");
+      argv["search-key"] = searchKey;
+    }
+    if (!projectId) {
+      projectId = await promptIfMissing(null, "Enter project id for illustration (CUSTOM_SEARCH_PROJECT): ");
+      argv["project-id"] = projectId;
+    }
+  }
+
+  if (argv.directory) {
+    const files = fs.readdirSync(argv.directory)
+      .filter(f => f.endsWith(".srt"))
+      .map(f => path.join(argv.directory, f));
+    for (const file of files) {
+      await processFile(file, argv);
+    }
+  } else if (argv._[0]) {
+    await processFile(argv._[0], argv);
+  } else {
+    yargs().showHelp();
+    process.exit(1);
+  }
+}
+
+main();

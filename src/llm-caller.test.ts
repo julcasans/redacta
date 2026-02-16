@@ -16,10 +16,14 @@ describe('LLM Caller', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    const eventCallbacks: Record<string, any> = {};
     mockSession = {
         sendAndWait: vi.fn(),
         send: vi.fn(),
-        on: vi.fn(),
+        on: vi.fn().mockImplementation((event: string, cb: any) => {
+            eventCallbacks[event] = cb;
+            return () => {};
+        }),
         destroy: vi.fn(),
     };
 
@@ -28,6 +32,8 @@ describe('LLM Caller', () => {
         stop: vi.fn(),
         createSession: vi.fn().mockResolvedValue(mockSession),
     };
+
+    (mockSession as any).eventCallbacks = eventCallbacks;
 
     (CopilotClient as any).mockImplementation(function() { return mockClientInstance; });
   });
@@ -41,32 +47,16 @@ describe('LLM Caller', () => {
     // streaming uses session.send() and listens to events via session.on()
     // We need to mock session.on to trigger callbacks
     
-    let messageCallback: any;
-    mockSession.on.mockImplementation((event: string, cb: any) => {
-        if (event === 'assistant.message') {
-            messageCallback = cb;
-        }
-        return () => {}; // unsubscribe
-    });
+    const eventCallbacks = (mockSession as any).eventCallbacks;
 
     mockSession.send.mockImplementation(async () => {
         // Simulate response delivery after send
-        if (messageCallback) {
-            // Simulate deltas
-            let deltaCallback: any;
-            // Find the delta callback
-             mockSession.on.mock.calls.forEach((call: any) => {
-                if (call[0] === 'assistant.message_delta') {
-                    deltaCallback = call[1];
-                }
-            });
-
-            if (deltaCallback) {
-                deltaCallback({ data: { deltaContent: 'LLM ' } });
-                deltaCallback({ data: { deltaContent: 'Response' } });
-            }
-
-            messageCallback({ data: { content: 'LLM Response' } });
+        if (eventCallbacks['assistant.message_delta']) {
+            eventCallbacks['assistant.message_delta']({ data: { deltaContent: 'LLM ' } });
+            eventCallbacks['assistant.message_delta']({ data: { deltaContent: 'Response' } });
+        }
+        if (eventCallbacks['assistant.message']) {
+            eventCallbacks['assistant.message']({ data: { content: 'LLM Response' } });
         }
     });
 

@@ -75,6 +75,8 @@ async function sendOnce(client: CopilotClient, { model, systemPrompt, userPrompt
     }
 
     const streamController = waitForAssistantCompletion(session, timeoutMs, onUpdate);
+    // Suppress unhandled rejection if session.send fails and we don't await the promise
+    streamController.promise.catch(() => {});
     try {
       await session.send({ prompt: userPrompt });
     } catch (sendError) {

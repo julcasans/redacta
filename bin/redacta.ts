@@ -27,6 +27,8 @@ interface Arguments {
   "search-key"?: string;
   "project-id"?: string;
   "list-models"?: boolean;
+  "api-key"?: string;
+  "provider-url"?: string;
   _?: (string | number)[];
 }
 
@@ -42,8 +44,10 @@ const argv = yargs(hideBin(process.argv))
   .option("search-key", { type: "string", description: "Custom search key for illustration (overrides env)" })
   .option("project-id", { type: "string", description: "Custom project id for illustration (overrides env)" })
   .option("list-models", { type: "boolean", description: "List available models" })
+  .option("api-key", { type: "string", description: "API key for custom LLM provider (BYOK)" })
+  .option("provider-url", { type: "string", description: "Base URL of custom OpenAI-compatible LLM provider (BYOK/BYOM)" })
   .help()
-  .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nRun with --list-models to see available models.")
+  .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nUse --provider-url and --api-key to bring your own model/key (BYOM/BYOK).\nRun with --list-models to see available models.")
   .parseSync() as Arguments;
 
 const defaultModel = "gpt-4.1";
@@ -67,6 +71,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const formattedPath = path.join(dirName, `${baseName}_formatted.md`);
 
   const model = options.model || process.env.MODEL || defaultModel;
+  const providerUrl = options["provider-url"] || process.env.PROVIDER_URL || "";
+  const apiKey = options["api-key"] || process.env.API_KEY || "";
   // CLI args take precedence, then env, then prompt
   let searchKey = options["search-key"] || process.env.CUSTOM_SEARCH_KEY;
   let projectId = options["project-id"] || process.env.CUSTOM_SEARCH_PROJECT;
@@ -97,8 +103,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const formattedOutput = await formatTranscript(
     transcript,
     options.language || null,
-    "",
-    "",
+    providerUrl,
+    apiKey,
     model,
     (msg) => updateTUI(currentStep, msg)
   );
@@ -122,8 +128,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const mode = options["with-illustration-all"] ? "all" : "essential";
     latestFormattedOutput = await enrichMarkdown(
       formattedOutput,
-      "",
-      "",
+      providerUrl,
+      apiKey,
       searchKey,
       projectId,
       model,
@@ -144,8 +150,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const blogOutput = await generateBlogPost(
       latestFormattedOutput,
       options.language || null,
-      "",
-      "",
+      providerUrl,
+      apiKey,
       model,
       (msg) => updateTUI(currentStep, msg)
     );
@@ -163,8 +169,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const summaryOutput = await generateSummary(
       latestFormattedOutput,
       options.language || null,
-      "",
-      "",
+      providerUrl,
+      apiKey,
       model,
       (msg) => updateTUI(currentStep, msg)
     );
@@ -182,7 +188,7 @@ async function processFile(transcriptPath: string, options: Arguments) {
 
 async function main() {
   if (argv["list-models"]) {
-    await printModelsHelp();
+    await printModelsHelp(argv["provider-url"], argv["api-key"]);
     process.exit(0);
   }
 

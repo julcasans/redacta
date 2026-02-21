@@ -1,12 +1,9 @@
-import { CopilotClient } from "@github/copilot-sdk";
+import { listModels } from "./llm-caller.js";
 
-export async function printModelsHelp() {
-  const client = new CopilotClient();
-  await client.start();
-  const models = await client.listModels();
-  await client.stop();
+export async function printModelsHelp(providerUrl?: string, apiKey?: string) {
+  const models = await listModels(providerUrl, apiKey);
   console.log("\nAvailable models:");
-  models.forEach(m => {
-    console.log(`- ${m.id}`);
+  models.forEach(id => {
+    console.log(`- ${id}`);
   });
 }

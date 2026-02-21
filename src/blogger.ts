@@ -1,4 +1,4 @@
-import { callLLM } from './llm-caller.js';
+import { callLLM, LLMProviderConfig } from './llm-caller.js';
 import { chunkText } from './chunks.js';
 import {
   blogWriterSystemPrompt,
@@ -25,9 +25,8 @@ function fixLatexDelimiters(text: string): string {
 export async function generateBlogPost(
   text: string,
   language: string | null,
-  provider: string,
-  apiKey: string,
-  modelName: string,
+  model: string,
+  provider?: LLMProviderConfig,
   onUpdate?: (msg: string) => void
 ): Promise<string> {
   const chunks = chunkText(text);
@@ -45,7 +44,7 @@ export async function generateBlogPost(
       position = 'This is the END of the post. You can include a brief wrap-up or conclusion';
 
     try {
-      let section = await callLLM(blogWriterSystemPrompt(), blogWriterPromptTemplate(language, chunks[i], position), provider, apiKey, modelName, onUpdate);
+      let section = await callLLM(blogWriterSystemPrompt(), blogWriterPromptTemplate(language, chunks[i], position), model, provider, onUpdate);
       
       if (section) {
         section = section

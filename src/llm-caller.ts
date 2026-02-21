@@ -3,12 +3,26 @@ import { CopilotClient } from "@github/copilot-sdk";
 const STREAM_TIMEOUT_MS = 3 * 60 * 1000;
 const STREAM_LOG_INTERVAL_MS = 2000;
 
+/**
+ * Configuration for a custom (BYOK/BYOM) LLM provider.
+ * Mirrors the SDK's ProviderConfig; see https://github.com/github/copilot-sdk/blob/main/docs/auth/byok.md
+ */
+export interface LLMProviderConfig {
+  /** Provider type. The SDK supports "openai" (default), "azure", and "anthropic". */
+  type?: 'openai' | 'azure' | 'anthropic';
+  /** API endpoint base URL (e.g. "https://my-resource.openai.azure.com"). */
+  baseUrl: string;
+  /** API key. Optional for local providers such as Ollama. */
+  apiKey?: string;
+  /** API wire format (openai/azure only). The SDK defaults to "completions" when not set. */
+  wireApi?: 'completions' | 'responses';
+}
+
 export async function callLLM(
   systemPrompt: string,
   userPrompt: string,
-  provider: string,
-  apiKey: string,
   model: string,
+  provider?: LLMProviderConfig,
   onUpdate?: (msg: string) => void
 ): Promise<string | null> {
   const client = new CopilotClient();
@@ -22,7 +36,8 @@ export async function callLLM(
         systemPrompt,
         userPrompt,
         timeoutMs: STREAM_TIMEOUT_MS,
-        onUpdate
+        onUpdate,
+        provider,
       });
     } catch (e) {
       console.error('LLM Call Error', e);
@@ -34,6 +49,44 @@ export async function callLLM(
   return textResponse;
 }
 
+const LIST_MODELS_TIMEOUT_MS = 30 * 1000;
+
+/**
+ * List available models.
+ *
+ * When a custom provider is given, fetches the model list from that
+ * OpenAI-compatible endpoint (GET <baseUrl>/models).
+ * Otherwise, delegates to the GitHub Copilot CLI via CopilotClient.
+ */
+export async function listModels(provider?: LLMProviderConfig): Promise<string[]> {
+  if (provider) {
+    const url = `${provider.baseUrl.replace(/\/$/, '')}/models`;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LIST_MODELS_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { headers, signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models from ${url}: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json() as { data?: Array<{ id: string }> };
+      return (data.data ?? []).map((m) => m.id);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  const client = new CopilotClient();
+  try {
+    await client.start();
+    const models = await client.listModels();
+    return models.map((m) => m.id);
+  } finally {
+    await client.stop();
+  }
+}
+
 interface SendOptions {
   model: string;
   systemPrompt: string;
@@ -41,12 +94,13 @@ interface SendOptions {
   timeoutMs: number;
   onUpdate?: (msg: string) => void;
   streaming?: boolean;
+  provider?: LLMProviderConfig;
 }
 
-async function sendWithOptionalStreaming(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, onUpdate }: SendOptions): Promise<string | null> {
+async function sendWithOptionalStreaming(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, onUpdate, provider }: SendOptions): Promise<string | null> {
   // 1) Try streaming first (faster feedback).
   try {
-    return await sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming: true, onUpdate });
+    return await sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming: true, onUpdate, provider });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const isKnownPrematureStreamClose = message.includes('Stream completed without a response.completed event');
@@ -54,11 +108,11 @@ async function sendWithOptionalStreaming(client: CopilotClient, { model, systemP
 
     // 2) Fallback: retry without streaming.
     if (onUpdate) onUpdate('[callLLM] Streaming ended prematurely; retrying without streaming...');
-    return await sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming: false, onUpdate });
+    return await sendOnce(client, { model, systemPrompt, userPrompt, timeoutMs, streaming: false, onUpdate, provider });
   }
 }
 
-async function sendOnce(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, streaming, onUpdate }: SendOptions): Promise<string | null> {
+async function sendOnce(client: CopilotClient, { model, systemPrompt, userPrompt, timeoutMs, streaming, onUpdate, provider }: SendOptions): Promise<string | null> {
   const session = await client.createSession({
     model,
     streaming,
@@ -66,6 +120,7 @@ async function sendOnce(client: CopilotClient, { model, systemPrompt, userPrompt
       content: systemPrompt,
       mode: 'replace'
     },
+    ...(provider ? { provider } : {}),
   });
 
   try {

@@ -46,27 +46,40 @@ redacta <transcript_file> [options]
 redacta --directory <path_to_directory> [options]
 ```
 
+
 ### Options
 
 | Option | Description |
 | :--- | :--- |
-| `--blog` | Generate a blog post (`_blog.md`) |
-| `--summary` | Generate a summary (`_summary.md`) |
-| `--language=<lang>` | Specify output language (e.g., `italian`, `english`, `spanish`) |
-| `--with-illustration` | Add essential illustrations (image search and ASCII diagrams) |
-| `--with-illustration-all` | Add comprehensive illustrations (more images/diagrams) |
-| `--directory=<dir>` | Process all `.srt` files in the specified directory |
-| `--model=<model_id>` | Specify the LLM model to use (default: `gpt-4.1`). See `--list-models`. |
-| `--list-models` | List available LLM models and exit |
-| `--search-key=<key>` | Google Custom Search API Key (overrides `CUSTOM_SEARCH_KEY`) |
-| `--project-id=<id>` | Google Custom Search Engine ID (overrides `CUSTOM_SEARCH_PROJECT`) |
+| `--blog` | Generate blog post (`_blog.md`) |
+| `--summary` | Generate summary (`_summary.md`) |
+| `--language <lang>` | Output language |
+| `--with-illustration` | Add essential illustrations |
+| `--with-illustration-all` | Add all illustrations |
+| `--directory <dir>` | Process all files in directory |
+| `--model <model_id>` | Specify model to use |
+| `--search-key <key>` | Custom search key for illustration (overrides env) |
+| `--project-id <id>` | Custom project id for illustration (overrides env) |
+| `--list-models` | List available models |
+| `--api-key <key>` | API key for custom LLM provider (BYOK) |
+| `--provider-url <url>` | Base URL of custom OpenAI-compatible LLM provider (BYOM/BYOK) |
+| `--provider-type <type>` | Provider type: openai, azure, or anthropic (default: openai) |
+| `--provider-wire-api <format>` | API wire format for openai/azure providers: completions or responses (default: completions) |
 | `--help` | Show help |
+
+#### Notes
+
+- For illustration (`--with-illustration`, `--with-illustration-all`), `--search-key` and `--project-id` are required (or set via environment variables `CUSTOM_SEARCH_KEY` and `CUSTOM_SEARCH_PROJECT`).
+- Use `--model` to specify the LLM model.
+- Use `--provider-url` and `--api-key` to bring your own model/key (BYOM/BYOK). Optionally set `--provider-type` and `--provider-wire-api`.
+- Run with `--list-models` to see available models.
+
 
 ### Examples
 
 #### 1. Format transcript and output in Italian
 ```bash
-redacta my_transcript.srt --language=italian
+redacta my_transcript.srt --language italian
 ```
 
 #### 2. Format transcript and add essential illustrations
@@ -81,7 +94,12 @@ redacta my_transcript.srt --with-illustration-all --blog --summary
 
 #### 4. Batch process a directory to Spanish
 ```bash
-redacta --directory ./transcripts --with-illustration-all --blog --summary --language=spanish
+redacta --directory ./transcripts --with-illustration-all --blog --summary --language spanish
+```
+
+#### 5. Use a custom LLM provider (BYOK/BYOM)
+```bash
+redacta my_transcript.srt --api-key <your_api_key> --provider-url <your_provider_url> --provider-type openai --provider-wire-api completions
 ```
 
 ## Google Custom Search Configuration

@@ -1,4 +1,5 @@
 // utils.js
+import type { LLMProviderConfig } from './llm-caller.js';
 
 /**
  * Splits text into chunks of at most maxChars, respecting paragraph boundaries.
@@ -101,9 +102,8 @@ export function chunkText(text: string, maxChars = 20000): string[] {
 type CallLLMFunction = (
   systemPrompt: string,
   userPrompt: string,
-  provider: string,
-  apiKey: string,
-  modelName: string,
+  model: string,
+  provider?: LLMProviderConfig,
   onUpdate?: (msg: string) => void
 ) => Promise<string | null>;
 
@@ -113,18 +113,16 @@ type CallLLMFunction = (
  *
  * @param {string} text - The raw text to chunk.
  * @param {Function} callLLM - The function to call the LLM (helper from background.js).
- * @param {string} provider - LLM provider.
- * @param {string} apiKey - API Key.
- * @param {string} modelName - Model name.
+ * @param {string} model - Model name.
+ * @param {LLMProviderConfig} provider - Optional custom LLM provider config.
  * @param {number} windowSize - Size of the window to analyze in characters (approx 500 words ~ 3000 chars).
  * @returns {Promise<string[]>} Array of text chunks.
  */
 export async function chunkRawText(
   text: string,
   callLLM: CallLLMFunction,
-  provider: string,
-  apiKey: string,
-  modelName: string,
+  model: string,
+  provider?: LLMProviderConfig,
   windowSize = 3000
 ): Promise<string[]> {
   const chunks: string[] = [];
@@ -173,7 +171,7 @@ Just the text segment. Do NOT add quotes, do NOT add markdown, do NOT add explan
 
     try {
       // Note: systemPrompt is first arg to callLLM based on background.js context
-      let result = await callLLM(systemPrompt, prompt, provider, apiKey, modelName);
+      let result = await callLLM(systemPrompt, prompt, model, provider);
 
       // Clean up result
       if (result) {

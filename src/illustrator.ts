@@ -1,4 +1,4 @@
-import { callLLM } from './llm-caller.js';
+import { callLLM, LLMProviderConfig } from './llm-caller.js';
 import { chunkText } from './chunks.js';
 import {
   illustratorSystemPrompt,
@@ -10,11 +10,10 @@ import { callCustomSearch } from './image-finder.js';
 
 export async function enrichMarkdown(
   markdown: string,
-  provider: string,
-  apiKey: string,
   searchKey: string,
   engineId: string,
-  modelName: string,
+  model: string,
+  provider?: LLMProviderConfig,
   mode: 'all' | 'essential' = 'essential',
   onUpdate?: (msg: string) => void
 ): Promise<string> {
@@ -26,7 +25,7 @@ export async function enrichMarkdown(
   for (let i = 0; i < chunks.length; i++) {
     if (onUpdate) onUpdate(`Enriching: Identifying images in chunk ${i + 1}/${chunks.length}...`);
     try {
-      let chunk = await callLLM(illustratorSystemPrompt(), illustratorPromptTemplate(chunks[i], mode), provider, apiKey, modelName, onUpdate);
+      let chunk = await callLLM(illustratorSystemPrompt(), illustratorPromptTemplate(chunks[i], mode), model, provider, onUpdate);
       if (chunk) {
         chunk = chunk
           .replace(/^```markdown\s*/i, '')
@@ -58,7 +57,7 @@ export async function enrichMarkdown(
       if (onUpdate) onUpdate(`Enriching: Generating diagram for "${description}" (${i + 1}/${diagMatches.length})...`);
 
       try {
-        let diagram = await callLLM(sketcherSystemPrompt(), sketcherPromptTemplate(description), provider, apiKey, modelName, onUpdate);
+        let diagram = await callLLM(sketcherSystemPrompt(), sketcherPromptTemplate(description), model, provider, onUpdate);
         if (diagram) {
             diagram = diagram.trim();
             if (!diagram.startsWith('```')) {

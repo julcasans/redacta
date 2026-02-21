@@ -46,7 +46,7 @@ describe('Chunks', () => {
       const callLLM = vi.fn().mockResolvedValue('This is start. This is end.');
       
       // Use small window size (20) to force LLM call
-      const chunks = await chunkRawText(text, callLLM, 'provider', 'key', 'model', 20);
+      const chunks = await chunkRawText(text, callLLM, 'model', undefined, 20);
       
       expect(chunks.length).toBeGreaterThan(0);
       expect(callLLM).toHaveBeenCalled();
@@ -56,7 +56,7 @@ describe('Chunks', () => {
         const text = 'word '.repeat(100);
         const callLLM = vi.fn().mockRejectedValue(new Error('LLM Error'));
         
-        const chunks = await chunkRawText(text, callLLM, 'provider', 'key', 'model', 50);
+        const chunks = await chunkRawText(text, callLLM, 'model', undefined, 50);
         
         // Should fallback to space splitting
         expect(chunks.length).toBeGreaterThan(0);

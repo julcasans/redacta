@@ -1,7 +1,7 @@
-import { listModels } from "./llm-caller.js";
+import { listModels, LLMProviderConfig } from "./llm-caller.js";
 
-export async function printModelsHelp(providerUrl?: string, apiKey?: string) {
-  const models = await listModels(providerUrl, apiKey);
+export async function printModelsHelp(provider?: LLMProviderConfig) {
+  const models = await listModels(provider);
   console.log("\nAvailable models:");
   models.forEach(id => {
     console.log(`- ${id}`);

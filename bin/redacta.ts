@@ -14,6 +14,7 @@ import path from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { printModelsHelp } from "../src/cli-help.js";
+import type { LLMProviderConfig } from "../src/llm-caller.js";
 
 interface Arguments {
   [x: string]: unknown;
@@ -29,6 +30,8 @@ interface Arguments {
   "list-models"?: boolean;
   "api-key"?: string;
   "provider-url"?: string;
+  "provider-type"?: string;
+  "provider-wire-api"?: string;
   _?: (string | number)[];
 }
 
@@ -45,9 +48,11 @@ const argv = yargs(hideBin(process.argv))
   .option("project-id", { type: "string", description: "Custom project id for illustration (overrides env)" })
   .option("list-models", { type: "boolean", description: "List available models" })
   .option("api-key", { type: "string", description: "API key for custom LLM provider (BYOK)" })
-  .option("provider-url", { type: "string", description: "Base URL of custom OpenAI-compatible LLM provider (BYOK/BYOM)" })
+  .option("provider-url", { type: "string", description: "Base URL of custom OpenAI-compatible LLM provider (BYOM/BYOK)" })
+  .option("provider-type", { type: "string", description: "Provider type: openai, azure, or anthropic (default: openai)" })
+  .option("provider-wire-api", { type: "string", description: "API wire format for openai/azure providers: completions or responses (default: completions)" })
   .help()
-  .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nUse --provider-url and --api-key to bring your own model/key (BYOM/BYOK).\nRun with --list-models to see available models.")
+  .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nUse --provider-url and --api-key to bring your own model/key (BYOM/BYOK). Optionally set --provider-type and --provider-wire-api.\nRun with --list-models to see available models.")
   .parseSync() as Arguments;
 
 const defaultModel = "gpt-4.1";
@@ -71,8 +76,13 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const formattedPath = path.join(dirName, `${baseName}_formatted.md`);
 
   const model = options.model || process.env.MODEL || defaultModel;
-  const providerUrl = options["provider-url"] || process.env.PROVIDER_URL || "";
-  const apiKey = options["api-key"] || process.env.API_KEY || "";
+  const providerUrl = options["provider-url"] || process.env.PROVIDER_URL;
+  const apiKey = options["api-key"] || process.env.API_KEY;
+  const providerType = (options["provider-type"] || process.env.PROVIDER_TYPE) as LLMProviderConfig['type'] | undefined;
+  const wireApi = (options["provider-wire-api"] || process.env.PROVIDER_WIRE_API) as LLMProviderConfig['wireApi'] | undefined;
+  const provider: LLMProviderConfig | undefined = providerUrl
+    ? { baseUrl: providerUrl, ...(apiKey ? { apiKey } : {}), ...(providerType ? { type: providerType } : {}), ...(wireApi ? { wireApi } : {}) }
+    : undefined;
   // CLI args take precedence, then env, then prompt
   let searchKey = options["search-key"] || process.env.CUSTOM_SEARCH_KEY;
   let projectId = options["project-id"] || process.env.CUSTOM_SEARCH_PROJECT;
@@ -103,9 +113,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const formattedOutput = await formatTranscript(
     transcript,
     options.language || null,
-    providerUrl,
-    apiKey,
     model,
+    provider,
     (msg) => updateTUI(currentStep, msg)
   );
   fs.writeFileSync(formattedPath, formattedOutput);
@@ -128,11 +137,10 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const mode = options["with-illustration-all"] ? "all" : "essential";
     latestFormattedOutput = await enrichMarkdown(
       formattedOutput,
-      providerUrl,
-      apiKey,
       searchKey,
       projectId,
       model,
+      provider,
       mode,
       (msg) => updateTUI(currentStep, msg)
     );
@@ -150,9 +158,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const blogOutput = await generateBlogPost(
       latestFormattedOutput,
       options.language || null,
-      providerUrl,
-      apiKey,
       model,
+      provider,
       (msg) => updateTUI(currentStep, msg)
     );
     fs.writeFileSync(blogPath, blogOutput);
@@ -169,9 +176,8 @@ async function processFile(transcriptPath: string, options: Arguments) {
     const summaryOutput = await generateSummary(
       latestFormattedOutput,
       options.language || null,
-      providerUrl,
-      apiKey,
       model,
+      provider,
       (msg) => updateTUI(currentStep, msg)
     );
     fs.writeFileSync(summaryPath, summaryOutput);
@@ -188,7 +194,12 @@ async function processFile(transcriptPath: string, options: Arguments) {
 
 async function main() {
   if (argv["list-models"]) {
-    await printModelsHelp(argv["provider-url"], argv["api-key"]);
+    const providerUrl = argv["provider-url"] || process.env.PROVIDER_URL;
+    const apiKey = argv["api-key"] || process.env.API_KEY;
+    const listProvider: LLMProviderConfig | undefined = providerUrl
+      ? { baseUrl: providerUrl, ...(apiKey ? { apiKey } : {}) }
+      : undefined;
+    await printModelsHelp(listProvider);
     process.exit(0);
   }
 

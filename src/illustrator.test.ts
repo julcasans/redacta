@@ -23,7 +23,7 @@ describe('Illustrator', () => {
         return null;
     });
 
-    const result = await enrichMarkdown(markdown, 'provider', 'key', 'searchKey', 'cx', 'model', 'all');
+    const result = await enrichMarkdown(markdown, 'searchKey', 'cx', 'model', undefined, 'all');
     
     expect(result).toContain('+---+');
     expect(result).toContain('|Box|');
@@ -47,7 +47,7 @@ describe('Illustrator', () => {
         title: 'Starry Night'
     });
 
-    const result = await enrichMarkdown(markdown, 'provider', 'key', 'searchKey', 'cx', 'model');
+    const result = await enrichMarkdown(markdown, 'searchKey', 'cx', 'model');
     
     expect(result).toContain('![Starry Night](http://image.url)');
   });
@@ -58,7 +58,7 @@ describe('Illustrator', () => {
     vi.spyOn(llmCaller, 'callLLM').mockResolvedValue(markdown);
     
     // Pass empty search key
-    const result = await enrichMarkdown(markdown, 'provider', 'key', '', '', 'model');
+    const result = await enrichMarkdown(markdown, '', '', 'model');
     
     // Should return text as is (with tags)
     expect(result).toContain('<!-- IMAGE_SEARCH: "test" -->');
@@ -72,7 +72,7 @@ describe('Illustrator', () => {
         .mockResolvedValueOnce(markdown) // Enrich step
         .mockResolvedValueOnce(null); // Diagram step fails
 
-      const result = await enrichMarkdown(markdown, 'provider', 'key', 's', 'c', 'm');
+      const result = await enrichMarkdown(markdown, 's', 'c', 'm');
       expect(result).toContain('Failed to generate diagram');
   });
 });

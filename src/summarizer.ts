@@ -1,4 +1,4 @@
-import { callLLM } from './llm-caller.js';
+import { callLLM, LLMProviderConfig } from './llm-caller.js';
 import { chunkText } from './chunks.js';
 import {
   preSummarizerPromptTemplate,
@@ -20,9 +20,8 @@ function fixLatexDelimiters(text: string): string {
 export async function generateSummary(
   text: string,
   language: string | null,
-  provider: string,
-  apiKey: string,
-  modelName: string,
+  model: string,
+  provider?: LLMProviderConfig,
   onUpdate?: (msg: string) => void
 ): Promise<string> {
   const chunks = chunkText(text);
@@ -33,7 +32,7 @@ export async function generateSummary(
     if (onUpdate) onUpdate(`Summarizing: Condensing chunk ${i + 1}/${chunks.length}...`);
 
     try {
-      let condensed = await callLLM(summarizerSystemPrompt(), preSummarizerPromptTemplate(language, chunks[i]), provider, apiKey, modelName, onUpdate);
+      let condensed = await callLLM(summarizerSystemPrompt(), preSummarizerPromptTemplate(language, chunks[i]), model, provider, onUpdate);
 
       if (condensed) {
         condensedChunks.push(condensed);
@@ -55,9 +54,8 @@ export async function generateSummary(
     globalMeta = await callLLM(
       summarizerSystemPrompt(),
       summarizerPromptTemplate(language, fullCondensed),
+      model,
       provider,
-      apiKey,
-      modelName,
       onUpdate
     );
   } catch (e) {

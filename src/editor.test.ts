@@ -21,7 +21,7 @@ describe('Editor', () => {
     });
     vi.spyOn(llmCaller, 'callLLM').mockResolvedValue(mockResponse);
 
-    const result = await formatTranscript(transcript, 'English', 'provider', 'key', 'model');
+    const result = await formatTranscript(transcript, 'English', 'model');
     
     expect(result).toContain('# Hello World');
     expect(chunks.chunkText).toHaveBeenCalledWith(transcript);
@@ -39,7 +39,7 @@ describe('Editor', () => {
     });
     vi.spyOn(llmCaller, 'callLLM').mockResolvedValue(mockResponse);
 
-    await formatTranscript(transcript, 'English', 'provider', 'key', 'model');
+    await formatTranscript(transcript, 'English', 'model');
     
     // Should have called chunkRawText because of simple heuristic check in editor.ts
     // (Note: editor.ts has `if (hasPunctuation || true)` which forces chunkText currently.
@@ -65,7 +65,7 @@ describe('Editor', () => {
       vi.spyOn(chunks, 'chunkText').mockReturnValue([transcript]);
       vi.spyOn(llmCaller, 'callLLM').mockRejectedValue(new Error('LLM Fail'));
 
-      const result = await formatTranscript(transcript, 'English', 'provider', 'key', 'model');
+      const result = await formatTranscript(transcript, 'English', 'model');
       
       // Should fallback to original chunk
       expect(result).toBe(transcript);
@@ -85,7 +85,7 @@ describe('Editor', () => {
     });
     vi.spyOn(llmCaller, 'callLLM').mockResolvedValue(mockResponse);
 
-    const result = await formatTranscript(transcript, 'English', 'provider', 'key', 'model');
+    const result = await formatTranscript(transcript, 'English', 'model');
     
     expect(result).toContain('http://ref1.com');
     expect(result).toContain('http://ref2.com');

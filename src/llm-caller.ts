@@ -49,6 +49,8 @@ export async function callLLM(
   return textResponse;
 }
 
+const LIST_MODELS_TIMEOUT_MS = 30 * 1000;
+
 /**
  * List available models.
  *
@@ -61,19 +63,28 @@ export async function listModels(provider?: LLMProviderConfig): Promise<string[]
     const url = `${provider.baseUrl.replace(/\/$/, '')}/models`;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
-    const response = await fetch(url, { headers });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models from ${url}: ${response.status} ${response.statusText}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LIST_MODELS_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { headers, signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models from ${url}: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json() as { data?: Array<{ id: string }> };
+      return (data.data ?? []).map((m) => m.id);
+    } finally {
+      clearTimeout(timeoutId);
     }
-    const data = await response.json() as { data?: Array<{ id: string }> };
-    return (data.data ?? []).map((m) => m.id);
   }
 
   const client = new CopilotClient();
-  await client.start();
-  const models = await client.listModels();
-  await client.stop();
-  return models.map((m) => m.id);
+  try {
+    await client.start();
+    const models = await client.listModels();
+    return models.map((m) => m.id);
+  } finally {
+    await client.stop();
+  }
 }
 
 interface SendOptions {

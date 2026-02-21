@@ -135,6 +135,10 @@ describe('listModels', () => {
     (CopilotClient as any).mockImplementation(function() { return mockClientInstance; });
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('should list models from GitHub Copilot when no provider is given', async () => {
     const models = await listModels();
     expect(models).toEqual(['gpt-4.1', 'claude-sonnet']);
@@ -153,8 +157,6 @@ describe('listModels', () => {
       'http://localhost:11434/v1/models',
       expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'application/json' }) })
     );
-
-    vi.unstubAllGlobals();
   });
 
   it('should include Authorization header when apiKey is provided for custom provider', async () => {
@@ -171,8 +173,6 @@ describe('listModels', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer my-secret-key' }),
       })
     );
-
-    vi.unstubAllGlobals();
   });
 
   it('should throw when custom provider returns an error response', async () => {
@@ -186,7 +186,21 @@ describe('listModels', () => {
     await expect(listModels({ baseUrl: 'https://api.example.com/v1', apiKey: 'bad-key' })).rejects.toThrow(
       'Failed to fetch models'
     );
+  });
 
-    vi.unstubAllGlobals();
+  it('should abort the fetch request when the timeout is exceeded', async () => {
+    vi.useFakeTimers();
+    const mockFetch = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const promise = listModels({ baseUrl: 'https://slow.example.com/v1' });
+    vi.advanceTimersByTime(31000); // LIST_MODELS_TIMEOUT_MS (30s) + 1s buffer
+
+    await expect(promise).rejects.toThrow('The operation was aborted.');
+    vi.useRealTimers();
   });
 });

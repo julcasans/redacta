@@ -32,6 +32,7 @@ interface Arguments {
   "provider-url"?: string;
   "provider-type"?: string;
   "provider-wire-api"?: string;
+  "transcription-only"?: boolean;
   _?: (string | number)[];
 }
 
@@ -51,6 +52,7 @@ const argv = yargs(hideBin(process.argv))
   .option("provider-url", { type: "string", description: "Base URL of custom OpenAI-compatible LLM provider (BYOM/BYOK)" })
   .option("provider-type", { type: "string", description: "Provider type: openai, azure, or anthropic (default: openai)" })
   .option("provider-wire-api", { type: "string", description: "API wire format for openai/azure providers: completions or responses (default: completions)" })
+  .option("transcription-only", { type: "boolean", description: "Download only the raw transcription, without any LLM processing" })
   .help()
   .epilog("For illustration (--with-illustration, --with-illustration-all), --search-key and --project-id are required (or set via environment variables CUSTOM_SEARCH_KEY and CUSTOM_SEARCH_PROJECT).\nUse --model to specify the LLM model.\nUse --provider-url and --api-key to bring your own model/key (BYOM/BYOK). Optionally set --provider-type and --provider-wire-api.\nRun with --list-models to see available models.")
   .parseSync() as Arguments;
@@ -74,6 +76,14 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const baseName = path.basename(transcriptPath, path.extname(transcriptPath));
   const dirName = path.dirname(transcriptPath);
   const formattedPath = path.join(dirName, `${baseName}_formatted.md`);
+
+  // If --transcription-only is set, save the raw transcript without any LLM processing
+  if (options["transcription-only"]) {
+    const transcriptionPath = path.join(dirName, `${baseName}_transcription.md`);
+    fs.writeFileSync(transcriptionPath, transcript);
+    console.log(`Transcription saved to ${transcriptionPath}`);
+    return;
+  }
 
   const model = options.model || process.env.MODEL || defaultModel;
   const providerUrl = options["provider-url"] || process.env.PROVIDER_URL;

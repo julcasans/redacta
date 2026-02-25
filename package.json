@@ -12,7 +12,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "vite build",
+    "build": "rimraf dist && tsc && vite build",
     "start": "node dist/bin/redacta.js"
   },
   "keywords": [

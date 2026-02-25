@@ -11,6 +11,6 @@
     "rootDir": "./",
     "jsx": "react"
   },
-  "include": ["src/**/*", "bin/**/*"],
+  "include": ["index.ts", "src/**/*", "bin/**/*"],
   "exclude": ["node_modules"]
 }

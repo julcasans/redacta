@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Build now generates `dist/index.js` by compiling TypeScript before bundling the CLI output.
+
 ## [1.1.0]
 
 ### Added

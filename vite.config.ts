@@ -21,6 +21,7 @@ export default defineConfig({
       ],
     },
     outDir: 'dist',
+    emptyOutDir: false,
     target: 'node18',
     minify: false,
   },

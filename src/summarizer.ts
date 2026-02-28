@@ -1,4 +1,4 @@
-import { callLLM, LLMProviderConfig } from './llm-caller.js';
+import { LLMAdapter } from './adapters/types.js';
 import { chunkText } from './chunks.js';
 import {
   preSummarizerPromptTemplate,
@@ -21,7 +21,7 @@ export async function generateSummary(
   text: string,
   language: string | null,
   model: string,
-  provider?: LLMProviderConfig,
+  adapter: LLMAdapter,
   onUpdate?: (msg: string) => void
 ): Promise<string> {
   const chunks = chunkText(text);
@@ -32,7 +32,7 @@ export async function generateSummary(
     if (onUpdate) onUpdate(`Summarizing: Condensing chunk ${i + 1}/${chunks.length}...`);
 
     try {
-      let condensed = await callLLM(summarizerSystemPrompt(), preSummarizerPromptTemplate(language, chunks[i]), model, provider, onUpdate);
+      let condensed = await adapter.call(summarizerSystemPrompt(), preSummarizerPromptTemplate(language, chunks[i]), model);
 
       if (condensed) {
         condensedChunks.push(condensed);
@@ -51,12 +51,10 @@ export async function generateSummary(
   if (onUpdate) onUpdate('Summarizing: Generating abstract...');
   let globalMeta: string | null = '';
   try {
-    globalMeta = await callLLM(
+    globalMeta = await adapter.call(
       summarizerSystemPrompt(),
       summarizerPromptTemplate(language, fullCondensed),
-      model,
-      provider,
-      onUpdate
+      model
     );
   } catch (e) {
     globalMeta = '## Abstract\nError generating summary.';

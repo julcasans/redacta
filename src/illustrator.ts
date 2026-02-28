@@ -1,4 +1,4 @@
-import { callLLM, LLMProviderConfig } from './llm-caller.js';
+import { LLMAdapter } from './adapters/types.js';
 import { chunkText } from './chunks.js';
 import {
   illustratorSystemPrompt,
@@ -13,7 +13,7 @@ export async function enrichMarkdown(
   searchKey: string,
   engineId: string,
   model: string,
-  provider?: LLMProviderConfig,
+  adapter: LLMAdapter,
   mode: 'all' | 'essential' = 'essential',
   onUpdate?: (msg: string) => void
 ): Promise<string> {
@@ -25,7 +25,7 @@ export async function enrichMarkdown(
   for (let i = 0; i < chunks.length; i++) {
     if (onUpdate) onUpdate(`Enriching: Identifying images in chunk ${i + 1}/${chunks.length}...`);
     try {
-      let chunk = await callLLM(illustratorSystemPrompt(), illustratorPromptTemplate(chunks[i], mode), model, provider, onUpdate);
+      let chunk = await adapter.call(illustratorSystemPrompt(), illustratorPromptTemplate(chunks[i], mode), model);
       if (chunk) {
         chunk = chunk
           .replace(/^```markdown\s*/i, '')
@@ -57,7 +57,7 @@ export async function enrichMarkdown(
       if (onUpdate) onUpdate(`Enriching: Generating diagram for "${description}" (${i + 1}/${diagMatches.length})...`);
 
       try {
-        let diagram = await callLLM(sketcherSystemPrompt(), sketcherPromptTemplate(description), model, provider, onUpdate);
+        let diagram = await adapter.call(sketcherSystemPrompt(), sketcherPromptTemplate(description), model);
         if (diagram) {
             diagram = diagram.trim();
             if (!diagram.startsWith('```')) {

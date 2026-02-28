@@ -4,21 +4,25 @@ import { resolve } from 'path';
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'bin/redacta.ts'),
-      fileName: 'redacta',
+      // Browser-safe library entry (no @github/copilot-sdk, no Node.js deps)
+      entry: {
+        index: resolve(__dirname, 'index.ts'),
+        'index.node': resolve(__dirname, 'index.node.ts'),
+        redacta: resolve(__dirname, 'bin/redacta.ts'),
+      },
       formats: ['es'],
     },
     rollupOptions: {
       external: [
-        // dependencies to keep external (not bundled)
+        // Node.js built-ins
         'fs', 'path', 'url', 'child_process', 'util', 'events', 'stream', 'os', 'tty', 'readline', 'assert', 'crypto', 'buffer', 'process', 'module', 'v8', 'vm',
+        // Runtime dependencies (kept external in all builds)
         '@github/copilot-sdk', 'dotenv', 'ink', 'react', 'yargs',
-        // devDependencies usually don't need to be here for a CLI build unless used at runtime
       ],
     },
-    outDir: 'dist/bin',
-    target: 'node18', // Target Node.js environment
-    minify: false, // Optional: keep code readable for CLI
+    outDir: 'dist',
+    target: 'node18',
+    minify: false,
   },
   test: {
     environment: 'node',

@@ -1,4 +1,4 @@
-import { callLLM, LLMProviderConfig } from './llm-caller.js';
+import { LLMAdapter } from './adapters/types.js';
 import { chunkText } from './chunks.js';
 import {
   blogWriterSystemPrompt,
@@ -26,7 +26,7 @@ export async function generateBlogPost(
   text: string,
   language: string | null,
   model: string,
-  provider?: LLMProviderConfig,
+  adapter: LLMAdapter,
   onUpdate?: (msg: string) => void
 ): Promise<string> {
   const chunks = chunkText(text);
@@ -44,7 +44,7 @@ export async function generateBlogPost(
       position = 'This is the END of the post. You can include a brief wrap-up or conclusion';
 
     try {
-      let section = await callLLM(blogWriterSystemPrompt(), blogWriterPromptTemplate(language, chunks[i], position), model, provider, onUpdate);
+      let section = await adapter.call(blogWriterSystemPrompt(), blogWriterPromptTemplate(language, chunks[i], position), model);
       
       if (section) {
         section = section

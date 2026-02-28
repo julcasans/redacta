@@ -1,8 +1,12 @@
 {
   "name": "redacta",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "CLI tool for generating blog posts, summaries, and enriched documents from video transcripts.",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./index.node.js": "./dist/index.node.js"
+  },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.23",
     "dotenv": "^17.3.0",
@@ -13,7 +17,7 @@
   "scripts": {
     "test": "vitest",
     "build": "rimraf dist && tsc && vite build",
-    "start": "node dist/bin/redacta.js"
+    "start": "node dist/redacta.js"
   },
   "keywords": [
     "cli",
@@ -27,7 +31,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "redacta": "./dist/bin/redacta.js"
+    "redacta": "./dist/redacta.js"
   },
   "files": [
     "dist",

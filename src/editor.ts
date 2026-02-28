@@ -1,4 +1,4 @@
-import { callLLM, LLMProviderConfig } from './llm-caller.js';
+import { LLMAdapter } from './adapters/types.js';
 import { chunkText, chunkRawText } from './chunks.js'
 import { editorSystemPrompt, editorPromptTemplate } from './prompts.js';
 import { parseLLMResponse } from './json-parser.js';
@@ -23,7 +23,7 @@ export async function formatTranscript(
   transcript: string,
   language: string | null,
   model: string,
-  provider?: LLMProviderConfig,
+  adapter: LLMAdapter,
   onUpdate?: (msg: string) => void
 ): Promise<string> {
   // Simple heuristic: If the text contains basic punctuation, assume it's safe to split by sentence.
@@ -35,7 +35,7 @@ export async function formatTranscript(
     chunks = chunkText(transcript);
   } else {
     onUpdate?.('Chunking raw transcript...');
-    chunks = await chunkRawText(transcript, callLLM, model, provider);
+    chunks = await chunkRawText(transcript, adapter.call.bind(adapter), model);
   }
 
   const formattedChunks: string[] = [];
@@ -45,7 +45,7 @@ export async function formatTranscript(
   for (let i = 0; i < chunks.length; i++) {
     onUpdate?.(`Formatting chunk ${i + 1}/${chunks.length}...`);
     try {
-      let response = await callLLM(editorSystemPrompt(), editorPromptTemplate(language, chunks[i]) + '\n\n' + chunks[i], model, provider, onUpdate);
+      let response = await adapter.call(editorSystemPrompt(), editorPromptTemplate(language, chunks[i]) + '\n\n' + chunks[i], model);
 
       // Clean code blocks if LLM wraps JSON in \`\`\`json ... \`\`\`
       if (response) {

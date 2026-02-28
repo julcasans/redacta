@@ -14,7 +14,7 @@ import path from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { printModelsHelp } from "../src/cli-help.js";
-import type { LLMProviderConfig } from "../src/llm-caller.js";
+import { createCopilotClient, CopilotProviderConfig } from "../src/adapters/copilot-client.js";
 
 interface Arguments {
   [x: string]: unknown;
@@ -78,11 +78,12 @@ async function processFile(transcriptPath: string, options: Arguments) {
   const model = options.model || process.env.MODEL || defaultModel;
   const providerUrl = options["provider-url"] || process.env.PROVIDER_URL;
   const apiKey = options["api-key"] || process.env.API_KEY;
-  const providerType = (options["provider-type"] || process.env.PROVIDER_TYPE) as LLMProviderConfig['type'] | undefined;
-  const wireApi = (options["provider-wire-api"] || process.env.PROVIDER_WIRE_API) as LLMProviderConfig['wireApi'] | undefined;
-  const provider: LLMProviderConfig | undefined = providerUrl
+  const providerType = (options["provider-type"] || process.env.PROVIDER_TYPE) as CopilotProviderConfig['type'] | undefined;
+  const wireApi = (options["provider-wire-api"] || process.env.PROVIDER_WIRE_API) as CopilotProviderConfig['wireApi'] | undefined;
+  const providerConfig: CopilotProviderConfig | undefined = providerUrl
     ? { baseUrl: providerUrl, ...(apiKey ? { apiKey } : {}), ...(providerType ? { type: providerType } : {}), ...(wireApi ? { wireApi } : {}) }
     : undefined;
+  const adapter = await createCopilotClient({ provider: providerConfig });
   // CLI args take precedence, then env, then prompt
   let searchKey = options["search-key"] || process.env.CUSTOM_SEARCH_KEY;
   let projectId = options["project-id"] || process.env.CUSTOM_SEARCH_PROJECT;
@@ -114,7 +115,7 @@ async function processFile(transcriptPath: string, options: Arguments) {
     transcript,
     options.language || null,
     model,
-    provider,
+    adapter,
     (msg) => updateTUI(currentStep, msg)
   );
   fs.writeFileSync(formattedPath, formattedOutput);
@@ -140,7 +141,7 @@ async function processFile(transcriptPath: string, options: Arguments) {
       searchKey,
       projectId,
       model,
-      provider,
+      adapter,
       mode,
       (msg) => updateTUI(currentStep, msg)
     );
@@ -159,7 +160,7 @@ async function processFile(transcriptPath: string, options: Arguments) {
       latestFormattedOutput,
       options.language || null,
       model,
-      provider,
+      adapter,
       (msg) => updateTUI(currentStep, msg)
     );
     fs.writeFileSync(blogPath, blogOutput);
@@ -177,7 +178,7 @@ async function processFile(transcriptPath: string, options: Arguments) {
       latestFormattedOutput,
       options.language || null,
       model,
-      provider,
+      adapter,
       (msg) => updateTUI(currentStep, msg)
     );
     fs.writeFileSync(summaryPath, summaryOutput);
@@ -193,10 +194,20 @@ async function processFile(transcriptPath: string, options: Arguments) {
 }
 
 async function main() {
+  // undici (transitive dep of @github/copilot-sdk) probes node:sqlite on load,
+  // emitting a harmless ExperimentalWarning. Suppress it before the dynamic
+  // import fires inside createCopilotClient().
+  const _defaultWarningListeners = process.rawListeners('warning') as ((...args: unknown[]) => void)[];
+  process.removeAllListeners('warning');
+  process.on('warning', (warning) => {
+    if (warning.name === 'ExperimentalWarning' && warning.message.includes('SQLite')) return;
+    _defaultWarningListeners.forEach(l => l.call(process, warning));
+  });
+
   if (argv["list-models"]) {
     const providerUrl = argv["provider-url"] || process.env.PROVIDER_URL;
     const apiKey = argv["api-key"] || process.env.API_KEY;
-    const listProvider: LLMProviderConfig | undefined = providerUrl
+    const listProvider: CopilotProviderConfig | undefined = providerUrl
       ? { baseUrl: providerUrl, ...(apiKey ? { apiKey } : {}) }
       : undefined;
     await printModelsHelp(listProvider);

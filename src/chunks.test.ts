@@ -42,25 +42,24 @@ describe('Chunks', () => {
   describe('chunkRawText', () => {
     it('should split raw text using LLM', async () => {
       const text = 'This is start. This is end. Next start.';
-      // Mock callLLM
       const callLLM = vi.fn().mockResolvedValue('This is start. This is end.');
-      
+
       // Use small window size (20) to force LLM call
-      const chunks = await chunkRawText(text, callLLM, 'model', undefined, 20);
-      
+      const chunks = await chunkRawText(text, callLLM, 'model', 20);
+
       expect(chunks.length).toBeGreaterThan(0);
       expect(callLLM).toHaveBeenCalled();
     });
 
     it('should fallback if LLM fails', async () => {
-        const text = 'word '.repeat(100);
-        const callLLM = vi.fn().mockRejectedValue(new Error('LLM Error'));
-        
-        const chunks = await chunkRawText(text, callLLM, 'model', undefined, 50);
-        
-        // Should fallback to space splitting
-        expect(chunks.length).toBeGreaterThan(0);
-        expect(chunks[0].length).toBeLessThanOrEqual(50);
+      const text = 'word '.repeat(100);
+      const callLLM = vi.fn().mockRejectedValue(new Error('LLM Error'));
+
+      const chunks = await chunkRawText(text, callLLM, 'model', 50);
+
+      // Should fallback to space splitting
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks[0].length).toBeLessThanOrEqual(50);
     });
   });
 });
